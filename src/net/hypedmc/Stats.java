@@ -3,9 +3,11 @@ package net.hypedmc;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.OptionalDouble;
 
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -36,12 +38,6 @@ public class Stats extends JavaPlugin {
 				saveStats();
 				return;
 			}
-			String result = "";
-			for (String date : onlines_stats.keySet()) {
-				result += String.format("['%s',%d],", date, onlines_stats.get(date));
-			}
-			if (result.endsWith(","))
-				result = result.substring(0, result.length() - 1);
 			BufferedWriter writer = new BufferedWriter(new FileWriter(file));
 			writer.write(getInfos());
 			writer.close();
@@ -49,10 +45,13 @@ public class Stats extends JavaPlugin {
 			e.printStackTrace();
 		}
 	}
-
+	
 	@Override
 	public void onEnable() {
 		init_date = DateTimeFormatter.ofPattern("HH:mm").format(LocalDateTime.now());
+
+		if (!getDataFolder().exists())
+			getDataFolder().mkdirs();
 
 		getServer().getPluginManager().registerEvents(new Listener() {
 
@@ -78,6 +77,26 @@ public class Stats extends JavaPlugin {
 	}
 
 	public static String getInfos() {
+		int max = 0;
+		int min = 0;
+		double average = 0;
+
+		for (int onlines : onlines_stats.values()) {
+			max = Math.max(max, onlines);
+			min = Math.min(min, onlines);
+		}
+		OptionalDouble optionalDouble = onlines_stats.values().stream().mapToDouble(a -> a).average();
+
+		if (optionalDouble.isPresent()) {
+			average = optionalDouble.getAsDouble();
+		}
+		String result = "";
+		for (String date : onlines_stats.keySet()) {
+			result += String.format("['%s',%d],", date, onlines_stats.get(date));
+		}
+		if (result.endsWith(","))
+			result = result.substring(0, result.length() - 1);
+
 		return String.format("<html>\r\n" + "<head>\r\n" + "	<title>Estatistica de Jogadores Onlines</title>\r\n"
 				+ "    <script type=\"text/javascript\" src=\"https://www.gstatic.com/charts/loader.js\"></script>\r\n"
 				+ "    <script>\r\n" + "        google.charts.load('current', {'packages':['corechart']});\r\n"
@@ -85,12 +104,15 @@ public class Stats extends JavaPlugin {
 				+ "            var tabela = new google.visualization.DataTable();\r\n"
 				+ "            tabela.addColumn('string','horario');\r\n"
 				+ "            tabela.addColumn('number','onlines');\r\n" + "            tabela.addRows([\r\n"
-				+ "                \r\n" + "            ]);\r\n"
+				+ "               " + result + "\r\n" + "            ]);\r\n"
 				+ "            var grafico = new google.visualization.AreaChart(document.getElementById('grafico'));\r\n"
 				+ "            grafico.draw(tabela);\r\n" + "        }\r\n"
 				+ "        google.charts.setOnLoadCallback(showChart);\r\n" + "    </script>\r\n" + "</head>\r\n"
 				+ "<body>\r\n" + "	<h1>Estatistica de jogadores onlines de %s ate %s<h1>\r\n"
-				+ "    <div id=\"grafico\"></div>\r\n" + "</body>\r\n" + "</html>", init_date, end_date);
+				+ "    <div id=\"grafico\"></div></br>\r\n" + "	<span>Maximo de Jogadores Onlines: %d<span></br>\r\n"
+				+ "	<span>Minimo de Jogadores Onlines: %d<span></br>\r\n"
+				+ "	<span>Media de Jogadores Onlines: %s<span></br>\r\n" + "</body>\r\n" + "</html>", init_date,
+				end_date, max, min, new DecimalFormat("##.#").format(average));
 	}
-
+	
 }
